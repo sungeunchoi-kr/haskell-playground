@@ -13,21 +13,28 @@ takeout i xs =
     let (ys,zs) = splitAt i xs in
     (ys ++ (tail zs), xs !! i)
 
-scrambleStep :: StateT ([a],[a]) (State StdGen) ()
+performN :: Monad m => Int -> m a -> m [a]
+performN 0 _ = return []
+performN n m = do
+    a1 <- m
+    a2 <- performN (n-1) m
+    return (a1 : a2)
+
+scrambleStep :: StateT [a] (State StdGen) a
 scrambleStep = do
-    (as,rs) <- get
+    as <- get
     r <- lift $ nextRandRange (length as - 1)
     let (as',a) = takeout r as
-    put (as',rs++[a])
+    put as'
+    return a
 
-scramble :: StateT ([a],[a]) (State StdGen) ([a])
+scramble :: StateT [a] (State StdGen) [a]
 scramble = do
-    (as,_) <- get
-    foldl (>>) (return ()) (replicate (length as) scrambleStep)
-    (_,rs) <- get
-    return rs
+    as <- get
+    arr <- performN (length as) scrambleStep
+    return arr
 
-runScramble l seed = evalState (evalStateT scramble (l,[])) seed
+runScramble l seed = evalState (evalStateT scramble l) seed
 
 main :: IO ()
 main = do
